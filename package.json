@@ -14,8 +14,8 @@
   "contributes": {
     "commands": [
       {
-        "command": "ai-code-assistant.helloWorld",
-        "title": "Hello World"
+        "command": "ai-code-assistant.openWebView",
+        "title": "AI Code Assistant: Open View"
       }
     ]
   },

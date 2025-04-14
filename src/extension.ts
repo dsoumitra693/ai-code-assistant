@@ -1,25 +1,35 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
+
 import * as vscode from 'vscode';
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
 
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
 	console.log('Congratulations, your extension "ai-code-assistant" is now active!');
 
-	// The command has been defined in the package.json file
-	// Now provide the implementation of the command with registerCommand
-	// The commandId parameter must match the command field in package.json
-	const disposable = vscode.commands.registerCommand('ai-code-assistant.helloWorld', () => {
-		// The code you place here will be executed every time your command is executed
-		// Display a message box to the user
-		vscode.window.showInformationMessage('Hello World from ai-code-assistant!');
-	});
-
-	context.subscriptions.push(disposable);
+	let webView = vscode.commands.registerCommand('ai-code-assistant.openWebView', () => {
+		let panel = vscode.window.createWebviewPanel(
+			'aiCodeAssistant',
+			'AI Code Assistant',
+			vscode.ViewColumn.One,
+			{
+				enableScripts: true,	
+				localResourceRoots: [
+					vscode.Uri.joinPath(context.extensionUri, 'media'),
+				],
+			}	
+		);
+		panel.webview.html = `
+		<H1>AI Code Assistant</H1>
+		<div id="container">
+			<div id="input">
+				<textarea id="codeInput" rows="10" cols="50"></textarea>
+				<button id="generateCode">Generate Code</button>
+			</div>
+			<div id="output">
+				<textarea id="codeOutput" rows="10" cols="50"></textarea>	
+				</div>
+				</div>
+		`;
+	})
 }
 
 // This method is called when your extension is deactivated
