@@ -1,0 +1,15 @@
+@import "tailwindcss";
+
+  /* Hide scrollbar for WebKit browsers */
+  *::-webkit-scrollbar {
+    width: 0px;
+    background: transparent;
+  }
+  
+  *::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 0px;
+    border: 0px solid transparent;
+    display: none;
+  }
+  
