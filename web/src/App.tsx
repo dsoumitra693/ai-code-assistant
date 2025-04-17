@@ -5,6 +5,14 @@ import HistoryPage from "./pages/history";
 import ChatPage from "./pages/chat";
 import DataProvider from "./provider/dataprovider";
 
+declare global {
+  interface Window {
+    acquireVsCodeApi: () => {
+      postMessage: (message: unknown) => void;
+    };
+  }
+}
+
 export default function App() {
   return (
     <DataProvider>

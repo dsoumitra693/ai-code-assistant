@@ -1,15 +1,9 @@
 import { Link } from "react-router-dom";
 import NavIcon from "./navicon";
+import { useData } from "../provider/dataprovider";
 
-export default function Navbar({title}:{title: string}) {
-    const handleClose = () => {
-        const vscode = window.acquireVsCodeApi();
-        if (vscode) {
-            vscode.postMessage({
-                type: 'close',
-            });
-        }
-    }
+export default function Navbar({ title }: { title: string }) {
+    const { closeTab } = useData();
 
     return (
         <nav>
@@ -25,7 +19,7 @@ export default function Navbar({title}:{title: string}) {
                         <NavIcon name="history" title="History" />
                     </Link>
                     <NavIcon name="cross" title="Close"
-                        onClick={handleClose} />
+                        onClick={() => closeTab()} />
                 </div>
             </div>
         </nav>

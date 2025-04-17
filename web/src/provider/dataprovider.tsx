@@ -1,16 +1,37 @@
-import React, { useEffect, useState, useCallback, createContext, useContext } from "react";
+import React, { useEffect, useCallback, createContext, useContext, useMemo, useRef } from "react";
+
+declare global {
+  interface Window {
+    __vscodeAPI__?: ReturnType<typeof window.acquireVsCodeApi>;
+  }
+}
+
+export type ChatKey = string;
+export interface ChatMessage {
+  content: string;
+  timestamp: number;
+}
+
+interface ILocalStore {
+  chatHistory: ChatKey[];
+  individualChat: Record<ChatKey, ChatMessage[]>;
+}
 
 interface DataContextType {
-  data: Record<string, string> | null;
-  setData: (newData: Record<string, string>) => void;
-  updateData: (newData: Record<string, string>) => void;
+  data: ILocalStore;
+  error: string | null;
   clearData: () => void;
-  resetData: () => void;
-  getDataByKey: (key: string) => string | null;
-  setDataByKey: (key: string, value: string) => void;
+  createNewChat: (key: ChatKey) => void;
+  addMessage: (key: ChatKey, message: string) => void;
+  closeTab: () => void;
 }
 
 const DataContext = createContext<DataContextType | null>(null);
+
+const emptyLocalStore: ILocalStore = {
+  chatHistory: [],
+  individualChat: {}
+};
 
 export function useData() {
   const context = useContext(DataContext);
@@ -21,51 +42,142 @@ export function useData() {
 }
 
 export default function DataProvider({ children }: { children: React.ReactNode }) {
-  const [data, setData] = useState<Record<string, string> | null>(null);
-  const vscode = window.acquireVsCodeApi?.();
+  const vscodeRef = useRef<ReturnType<typeof window.acquireVsCodeApi> | null>(null);
+  if (typeof window !== 'undefined' && !vscodeRef.current) {
+    vscodeRef.current = window.__vscodeAPI__ || window.acquireVsCodeApi?.();
+    if (vscodeRef.current) {
+      window.__vscodeAPI__ = vscodeRef.current;
+    }
+  }
+  const vscode = vscodeRef.current;
+  const [localStore, setLocalStore] = React.useState<ILocalStore>(emptyLocalStore);
+  const [error, setError] = React.useState<string | null>(null);
+  const messageQueue = useRef<(() => void)[]>([]);
 
-  // Message handler
-  useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      if (event.data.type === 'data') {
-        setData(event.data.payload);
+  const processMessageQueue = useCallback(() => {
+    if (vscode && messageQueue.current.length > 0) {
+      messageQueue.current.forEach(fn => fn());
+      messageQueue.current = [];
+    }
+  }, [vscode]);
+
+  const handleMessage = useCallback((event: MessageEvent) => {
+    try {
+      if (event.data.type.startsWith('get-data:')) {
+        const key = event.data.type.split(':')[1] as keyof ILocalStore;
+        const value = event.data.payload?.value;
+
+        if (value === undefined) {
+          throw new Error(`Invalid payload for ${key}`);
+        }
+
+        setLocalStore(prev => ({
+          ...prev,
+          [key]: Array.isArray(value) ? [...value] : { ...value }
+        }));
       }
-    };
-
-    window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Invalid data format');
+      console.log(error)
+    }
   }, []);
 
-  // Data operations
-  const handleDataChange = useCallback((newData: Record<string, string>) => {
-    vscode?.postMessage({ type: 'setData', payload: newData });
+  useEffect(() => {
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [handleMessage]);
+
+  useEffect(() => {
+    const fetchInitialData = () => {
+      vscode?.postMessage({ type: 'data-get:chatHistory' });
+      vscode?.postMessage({ type: 'data-get:individualChat' });
+    };
+
+    if (vscode) {
+      processMessageQueue();
+      fetchInitialData();
+    } else {
+      messageQueue.current.push(fetchInitialData);
+    }
+  }, [vscode, processMessageQueue]);
+
+  const clearData = useCallback(() => {
+    setLocalStore(emptyLocalStore);
+    vscode?.postMessage({ type: 'clear-data' });
+    setError(null);
   }, [vscode]);
 
-  const handleDataUpdate = useCallback((newData: Record<string, string>) => {
-    vscode?.postMessage({ type: 'data-update', payload: newData });
+  const createNewChat = useCallback((key: ChatKey) => {
+    setLocalStore(prev => {
+      const newChat = {
+        ...prev.individualChat,
+        [key]: []
+      };
+
+      vscode?.postMessage({
+        type: 'data-update:individualChat',
+        payload: { value: newChat }
+      });
+
+      vscode?.postMessage({
+        type: 'data-update:chatHistory',
+        payload: { value: key }
+      });
+
+      return {
+        chatHistory: [...prev.chatHistory, key],
+        individualChat: newChat
+      };
+    });
   }, [vscode]);
 
-  const clearData = useCallback(() => setData(null), []);
-  const resetData = useCallback(() => setData({}), []);
+  const addMessage = useCallback((key: ChatKey, content: string) => {
+    setLocalStore(prev => {
+      const newMessage: ChatMessage = {
+        content,
+        timestamp: Date.now()
+      };
 
-  const getDataByKey = useCallback((key: string) => data?.[key] || null, [data]);
+      const updatedChat = [
+        ...(prev.individualChat[key] || []),
+        newMessage
+      ];
 
-  const setDataByKey = useCallback((key: string, value: string) => {
-    const newData = { ...(data || {}), [key]: value };
-    setData(newData);
-    handleDataChange(newData);
-  }, [data, handleDataChange]);
+      vscode?.postMessage({
+        type: 'data-update:individualChat',
+        payload: {
+          value: {
+            ...prev.individualChat,
+            [key]: updatedChat
+          }
+        }
+      });
 
-  // Context value
-  const contextValue: DataContextType = {
-    data,
-    setData: handleDataChange,
-    updateData: handleDataUpdate,
+      return {
+        ...prev,
+        individualChat: {
+          ...prev.individualChat,
+          [key]: updatedChat
+        }
+      };
+    });
+  }, [vscode]);
+
+  const closeTab = useCallback(() => {
+    if (!vscode) return;
+    vscode.postMessage({
+      type: 'close',
+    });
+  }, [vscode]);
+
+  const contextValue = useMemo(() => ({
+    data: localStore,
+    error,
     clearData,
-    resetData,
-    getDataByKey,
-    setDataByKey
-  };
+    createNewChat,
+    addMessage,
+    closeTab
+  }), [localStore, error, clearData, createNewChat, addMessage]);
 
   return (
     <DataContext.Provider value={contextValue}>
