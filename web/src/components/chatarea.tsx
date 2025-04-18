@@ -1,63 +1,39 @@
-const ai_code_chats = [
-    {
-        "role": "system",
-        "content": "You are a helpful assistant."
-    },
-    {
-        "role": "user",
-        "content": "Hello! How can I improve my coding skills?"
-    },
-    {
-        "role": "assistant",
-        "content": "Practice regularly, work on projects, and learn from others."
-    },
-    {
-        "role": "user",
-        "content": "Can you recommend some resources?"
-    },
-    {
-        "role": "assistant",
-        "content": "Sure! Websites like Codecademy, freeCodeCamp, and LeetCode are great for learning."
-    },
-    {
-        "role": "user",
-        "content": "Thanks! I'll check them out."
-    },
-    {
-        "role": "assistant",
-        "content": "You're welcome! Happy coding!"
-    },
-    {
-        "role": "user",
-        "content": "What about books?"
-    },
-    {
-        "role": "assistant",
-        "content": "Books like 'Clean Code' and 'The Pragmatic Programmer' are excellent."
-    },
-    {
-        "role": "user",
-        "content": "Great! I'll add them to my reading list."
-    },
-    {
-        "role": "assistant",
-        "content": "Good choice! They will help you a lot."
-    }
-]
+import { Chat } from "../utils/type";
+import { marked } from "marked";
+import DOMPurify from "dompurify";
 
-export default function ChatArea() {
+export default function ChatArea({ ai_code_chats }: { ai_code_chats: Chat[] }) {
     return (
         <main className="flex-1 overflow-scroll p-4 h-full">
             <div className="flex flex-col gap-4">
-                {ai_code_chats.map((chat, index) => (
-                    <div key={index} className={`flex ${chat.role === "user" ? "justify-end" : "justify-start"}`}>
-                        <div className={`p-3 rounded-lg ${chat.role === "user" ? "bg-blue-500 text-white" : "bg-gray-700 text-gray-100"}`}>
-                            <p>{chat.content}</p>
-                        </div>
+                {ai_code_chats && ai_code_chats.length ? (
+                    ai_code_chats.map((chat, index) => {
+                        const rawHtml = marked(chat.content) as string;
+                        const cleanHtml = DOMPurify.sanitize(rawHtml);
+
+                        return (
+                            <div
+                                key={index}
+                                className={`flex ${chat.role === "user" ? "justify-end" : "justify-start"}`}
+                            >
+                                <div
+                                    className={`p-3 rounded-lg max-w-[90%] whitespace-pre-wrap ${
+                                        chat.role === "user"
+                                            ? "bg-blue-500 text-white"
+                                            : "bg-gray-700 text-gray-100"
+                                    }`}
+                                    dangerouslySetInnerHTML={{ __html: cleanHtml }}
+                                />
+                            </div>
+                        );
+                    })
+                ) : (
+                    <div className="h-30 w-full flex items-center justify-center">
+                        <p className="text-gray-400 text-center">Start a new chat.</p>
                     </div>
-                ))}
-                <div className="h-30 w-full"/>
+                )}
+                <div className="h-30 w-full" />
             </div>
         </main>
-    )
+    );
 }

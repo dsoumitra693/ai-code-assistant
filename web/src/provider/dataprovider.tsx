@@ -8,8 +8,8 @@ declare global {
 
 export type ChatKey = string;
 export interface ChatMessage {
+  role: string;
   content: string;
-  timestamp: number;
 }
 
 interface ILocalStore {
@@ -22,7 +22,7 @@ interface DataContextType {
   error: string | null;
   clearData: () => void;
   createNewChat: (key: ChatKey) => void;
-  addMessage: (key: ChatKey, message: string) => void;
+  addMessage: (key: ChatKey, message:ChatMessage) => void;
   closeTab: () => void;
 }
 
@@ -131,11 +131,10 @@ export default function DataProvider({ children }: { children: React.ReactNode }
     });
   }, [vscode]);
 
-  const addMessage = useCallback((key: ChatKey, content: string) => {
+  const addMessage = useCallback((key: ChatKey, message: ChatMessage) => {
     setLocalStore(prev => {
       const newMessage: ChatMessage = {
-        content,
-        timestamp: Date.now()
+        ...message
       };
 
       const updatedChat = [
@@ -177,7 +176,7 @@ export default function DataProvider({ children }: { children: React.ReactNode }
     createNewChat,
     addMessage,
     closeTab
-  }), [localStore, error, clearData, createNewChat, addMessage]);
+  }), [localStore, error, clearData, createNewChat, addMessage, closeTab]);
 
   return (
     <DataContext.Provider value={contextValue}>

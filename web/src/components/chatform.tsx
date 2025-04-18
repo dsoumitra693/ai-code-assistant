@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-export default function ChatForm() {
+export default function ChatForm({onSubmit, isLoading}:{onSubmit: (text: string) => void, isLoading?: boolean}) {
     const [text, setText] = useState(""); 
 
     return (
@@ -12,7 +12,8 @@ export default function ChatForm() {
                 onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
                         e.preventDefault();
-                        // Handle send message
+                        onSubmit(text);
+                        setText("");
                     }
                 }}
                 value={text}
@@ -39,9 +40,10 @@ export default function ChatForm() {
                 aria-label="Send message"
                 onClick={(e) => {
                     e.preventDefault();
-                    // Handle send message
+                    onSubmit(text);
+                    setText("");
                 }}
-                disabled
+                disabled={text.length === 0 || isLoading}
                 className={`${text.length > 0 ? "bg-blue-500":"bg-gray-700"} transition-all text-white px-4 py-2 rounded h-10 absolute right-0 bottom-0 m-1`}
             >
                 Send
